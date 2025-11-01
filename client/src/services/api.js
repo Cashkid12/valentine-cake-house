@@ -1,28 +1,32 @@
 import axios from 'axios';
 
-// Use environment variable for production, fallback to localhost for development
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 console.log('🌐 API Base URL:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000, // 10 second timeout
+  timeout: 10000,
 });
 
-// Request interceptor to add auth token
+// FIXED: Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('adminToken');
+    // Get token from localStorage - try both possible storage keys
+    const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+    
+    console.log('🔐 Token found:', !!token); // Debug log
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('📤 Sending request with auth token'); // Debug log
+    } else {
+      console.warn('⚠️ No auth token found'); // Debug log
     }
     
-    // Don't set Content-Type for FormData - let browser handle it
+    // Don't set Content-Type for FormData
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
-    } else {
-      config.headers['Content-Type'] = 'application/json';
     }
     
     return config;
@@ -32,16 +36,20 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
+// Enhanced response interceptor
 api.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
+    console.error('❌ API Error:', error.response?.status, error.response?.data);
+    
     if (error.response?.status === 401) {
-      // Token expired or invalid
+      console.log('🔐 Token expired, redirecting to login');
       localStorage.removeItem('adminToken');
+      localStorage.removeItem('token');
       localStorage.removeItem('adminUser');
+      localStorage.removeItem('user');
       window.location.href = '/admin/login';
     }
     return Promise.reject(error);
@@ -54,15 +62,11 @@ export const cakesAPI = {
   getFeatured: () => api.get('/cakes?featured=true'),
   getById: (id) => api.get(`/cakes/${id}`),
   create: (cakeData) => {
-    // For FormData, don't set Content-Type
     if (cakeData instanceof FormData) {
       return api.post('/admin/cakes', cakeData, {
-        headers: {
-          'Content-Type': undefined // Let browser set it
-        }
+        headers: { 'Content-Type': undefined }
       });
     }
-    // For regular JSON data
     return api.post('/admin/cakes', cakeData);
   },
   update: (id, cakeData) => api.put(`/admin/cakes/${id}`, cakeData),
@@ -75,9 +79,7 @@ export const adminAPI = {
   createCake: (cakeData) => {
     if (cakeData instanceof FormData) {
       return api.post('/admin/cakes', cakeData, {
-        headers: {
-          'Content-Type': undefined
-        }
+        headers: { 'Content-Type': undefined }
       });
     }
     return api.post('/admin/cakes', cakeData);
@@ -114,9 +116,7 @@ export const customCakesAPI = {
   create: (requestData) => {
     if (requestData instanceof FormData) {
       return api.post('/custom-cakes', requestData, {
-        headers: {
-          'Content-Type': undefined
-        }
+        headers: { 'Content-Type': undefined }
       });
     }
     return api.post('/custom-cakes', requestData);
@@ -136,23 +136,6 @@ export const authAPI = {
 // Health check
 export const healthAPI = {
   check: () => api.get('/health')
-};
-
-// Utility function to check API connectivity
-export const checkAPIConnectivity = async () => {
-  try {
-    const response = await healthAPI.check();
-    return {
-      connected: true,
-      status: response.data.status,
-      environment: response.data.environment
-    };
-  } catch (error) {
-    return {
-      connected: false,
-      error: error.message
-    };
-  }
 };
 
 export default api;
