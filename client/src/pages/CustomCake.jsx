@@ -22,6 +22,7 @@ const CustomCake = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     setIsVisible(true);
@@ -32,6 +33,8 @@ const CustomCake = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
+    // Clear error when user starts typing
+    if (submitError) setSubmitError('');
   };
 
   const handleImageUpload = (e) => {
@@ -63,8 +66,17 @@ const CustomCake = () => {
     e.preventDefault();
     setIsSubmitting(true);
     setUploadProgress(0);
+    setSubmitError('');
     
     try {
+      // Validate required fields
+      const requiredFields = ['customerName', 'phone', 'occasion', 'cakeSize', 'flavor', 'icing', 'designDescription'];
+      const missingFields = requiredFields.filter(field => !formData[field]);
+      
+      if (missingFields.length > 0) {
+        throw new Error(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      }
+
       const formDataToSend = new FormData();
       
       // Append form data
@@ -79,55 +91,76 @@ const CustomCake = () => {
         formDataToSend.append('images', image.file);
       });
 
+      console.log('📤 Submitting custom cake request...');
+      console.log('Form data keys:', Array.from(formDataToSend.keys()));
+
       // Simulate upload progress
-      const interval = setInterval(() => {
+      const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev >= 90) {
-            clearInterval(interval);
+            clearInterval(progressInterval);
             return 90;
           }
           return prev + 10;
         });
       }, 200);
 
-      const response = await fetch('http://localhost:5000/api/custom-cakes', {
+      const response = await fetch('https://valentine-cake-house.onrender.com/api/custom-cakes', {
         method: 'POST',
         body: formDataToSend
+        // Don't set Content-Type header for FormData - browser will set it with boundary
       });
 
-      clearInterval(interval);
+      clearInterval(progressInterval);
       setUploadProgress(100);
 
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Custom cake request submitted:', result);
-        
-        // Show success message
-        alert('🎉 Your custom cake request has been submitted! We will contact you within 24 hours to discuss your design.');
-        
-        // Reset form
-        setFormData({
-          customerName: '',
-          phone: '',
-          email: '',
-          occasion: '',
-          cakeSize: '',
-          flavor: '',
-          icing: '',
-          color: '',
-          message: '',
-          designDescription: '',
-          budget: '',
-          deliveryDate: '',
-          specialInstructions: ''
-        });
-        setReferenceImages([]);
-      } else {
-        throw new Error('Failed to submit request');
+      console.log('📨 Response status:', response.status);
+      
+      if (!response.ok) {
+        let errorMessage = 'Failed to submit request';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+          console.error('❌ Server error response:', errorData);
+        } catch (parseError) {
+          console.error('❌ Response parse error:', parseError);
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
+
+      const result = await response.json();
+      console.log('✅ Custom cake request submitted:', result);
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Request failed');
+      }
+      
+      // Show success message
+      alert('🎉 Your custom cake request has been submitted! We will contact you within 24 hours to discuss your design.');
+      
+      // Reset form
+      setFormData({
+        customerName: '',
+        phone: '',
+        email: '',
+        occasion: '',
+        cakeSize: '',
+        flavor: '',
+        icing: '',
+        color: '',
+        message: '',
+        designDescription: '',
+        budget: '',
+        deliveryDate: '',
+        specialInstructions: ''
+      });
+      setReferenceImages([]);
+      
     } catch (error) {
-      console.error('Error submitting custom cake request:', error);
-      alert('Error submitting your request. Please try again.');
+      console.error('❌ Error submitting custom cake request:', error);
+      setSubmitError(error.message);
+      alert(`Error: ${error.message}`);
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
@@ -192,8 +225,23 @@ const CustomCake = () => {
           </p>
         </div>
 
+        {/* Error Display */}
+        {submitError && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-6 animate-slideInDown">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <span className="text-2xl">❌</span>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-red-800 font-semibold">Submission Error</h3>
+                <p className="text-red-700 mt-1">{submitError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Custom Cake Form */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl p-8 border border-white/20 hover-lift transition-all duration-300">
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl p-6 md:p-8 border border-white/20 hover-lift transition-all duration-300">
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Personal Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -381,9 +429,6 @@ const CustomCake = () => {
                 <p className="text-sm text-gray-500 mt-2 font-medium">
                   Upload photos, sketches, or inspiration images (Max 5 images, PNG, JPG, JPEG up to 5MB each)
                 </p>
-                <p className="text-xs text-gray-400 mt-1 font-medium">
-                  Help us understand your vision better by showing us what you have in mind!
-                </p>
                 
                 {/* Image Previews */}
                 {referenceImages.length > 0 && (
@@ -497,36 +542,6 @@ const CustomCake = () => {
               </div>
             )}
 
-            {/* Information Box */}
-            <div className="bg-gradient-to-r from-primary-50 to-berry-50 p-6 rounded-2xl border border-primary-200 animate-slideInLeft">
-              <h3 className="font-semibold text-primary-800 mb-3 flex items-center text-lg">
-                <span className="text-xl mr-2">💡</span>
-                What happens next?
-              </h3>
-              <ul className="text-gray-700 space-y-2 font-medium">
-                <li className="flex items-center">
-                  <span className="w-2 h-2 bg-primary-500 rounded-full mr-3"></span>
-                  We'll review your reference images and design description
-                </li>
-                <li className="flex items-center">
-                  <span className="w-2 h-2 bg-primary-500 rounded-full mr-3"></span>
-                  We'll contact you within 24 hours to discuss your design
-                </li>
-                <li className="flex items-center">
-                  <span className="w-2 h-2 bg-primary-500 rounded-full mr-3"></span>
-                  We'll provide a detailed quote based on your requirements
-                </li>
-                <li className="flex items-center">
-                  <span className="w-2 h-2 bg-primary-500 rounded-full mr-3"></span>
-                  Once approved, we'll start creating your dream cake!
-                </li>
-                <li className="flex items-center">
-                  <span className="w-2 h-2 bg-primary-500 rounded-full mr-3"></span>
-                  Delivery/collection will be arranged for your preferred date
-                </li>
-              </ul>
-            </div>
-
             {/* Submit Button */}
             <div className="text-center pt-6 animate-slideInLeft">
               <button
@@ -551,9 +566,14 @@ const CustomCake = () => {
                   </span>
                 )}
               </button>
-              <p className="text-gray-600 mt-4 font-medium">
-                We'll contact you within 24 hours to discuss details and provide pricing
-              </p>
+              
+              {submitError && (
+                <div className="mt-4 p-4 bg-red-50 rounded-xl border border-red-200">
+                  <p className="text-red-700 text-sm">
+                    <strong>Debug Info:</strong> Check browser console for detailed error information.
+                  </p>
+                </div>
+              )}
             </div>
           </form>
         </div>
