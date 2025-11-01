@@ -25,7 +25,7 @@ const upload = multer({
   }
 });
 
-// Cloudinary upload function using the configured cloudinary instance
+// Cloudinary upload function
 const uploadToCloudinary = async (fileBuffer) => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -54,6 +54,8 @@ router.use(authorize('admin', 'staff'));
 // Admin dashboard stats
 router.get('/stats', async (req, res) => {
   try {
+    console.log('📊 Fetching admin stats for user:', req.user.id);
+    
     const totalCakes = await Cake.countDocuments();
     const totalOrders = await Order.countDocuments();
     const totalCustomRequests = await CustomCakeRequest.countDocuments();
@@ -83,6 +85,7 @@ router.get('/stats', async (req, res) => {
     ]);
 
     res.json({
+      success: true,
       totalCakes,
       totalOrders,
       totalCustomRequests,
@@ -94,6 +97,7 @@ router.get('/stats', async (req, res) => {
       popularCategories
     });
   } catch (error) {
+    console.error('❌ Error fetching stats:', error);
     res.status(500).json({ 
       success: false,
       message: error.message 
@@ -104,6 +108,8 @@ router.get('/stats', async (req, res) => {
 // Get all orders with pagination and filtering
 router.get('/orders', async (req, res) => {
   try {
+    console.log('📦 Fetching orders for admin:', req.user.id);
+    
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -140,6 +146,7 @@ router.get('/orders', async (req, res) => {
       totalOrders: total
     });
   } catch (error) {
+    console.error('❌ Error fetching orders:', error);
     res.status(500).json({ 
       success: false,
       message: error.message 
@@ -164,6 +171,7 @@ router.get('/orders/:id', async (req, res) => {
       order
     });
   } catch (error) {
+    console.error('❌ Error fetching order:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -202,30 +210,7 @@ router.patch('/orders/:id/status', async (req, res) => {
       order
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// Delete order
-router.delete('/orders/:id', async (req, res) => {
-  try {
-    const order = await Order.findByIdAndDelete(req.params.id);
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Order deleted successfully'
-    });
-  } catch (error) {
+    console.error('❌ Error updating order status:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -236,6 +221,8 @@ router.delete('/orders/:id', async (req, res) => {
 // Get all custom cake requests with pagination
 router.get('/custom-requests', async (req, res) => {
   try {
+    console.log('🎨 Fetching custom requests for admin:', req.user.id);
+    
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -271,6 +258,7 @@ router.get('/custom-requests', async (req, res) => {
       totalRequests: total
     });
   } catch (error) {
+    console.error('❌ Error fetching custom requests:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -295,6 +283,7 @@ router.get('/custom-requests/:id', async (req, res) => {
       request
     });
   } catch (error) {
+    console.error('❌ Error fetching custom request:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -338,60 +327,7 @@ router.patch('/custom-requests/:id/status', async (req, res) => {
       request
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// Add notes to custom request
-router.patch('/custom-requests/:id/notes', async (req, res) => {
-  try {
-    const { adminNotes } = req.body;
-
-    const request = await CustomCakeRequest.findByIdAndUpdate(
-      req.params.id,
-      { adminNotes },
-      { new: true }
-    );
-
-    if (!request) {
-      return res.status(404).json({
-        success: false,
-        message: 'Request not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      request
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// Delete custom request
-router.delete('/custom-requests/:id', async (req, res) => {
-  try {
-    const request = await CustomCakeRequest.findByIdAndDelete(req.params.id);
-
-    if (!request) {
-      return res.status(404).json({
-        success: false,
-        message: 'Request not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Custom request deleted successfully'
-    });
-  } catch (error) {
+    console.error('❌ Error updating custom request:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -402,6 +338,8 @@ router.delete('/custom-requests/:id', async (req, res) => {
 // Cake management - Get all cakes
 router.get('/cakes', async (req, res) => {
   try {
+    console.log('🎂 Fetching cakes for admin:', req.user.id);
+    
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
     const skip = (page - 1) * limit;
@@ -447,30 +385,7 @@ router.get('/cakes', async (req, res) => {
       totalCakes: total
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// Get single cake details
-router.get('/cakes/:id', async (req, res) => {
-  try {
-    const cake = await Cake.findById(req.params.id);
-
-    if (!cake) {
-      return res.status(404).json({
-        success: false,
-        message: 'Cake not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      cake
-    });
-  } catch (error) {
+    console.error('❌ Error fetching cakes:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -481,7 +396,7 @@ router.get('/cakes/:id', async (req, res) => {
 // Create new cake with image upload
 router.post('/cakes', upload.array('images', 5), async (req, res) => {
   try {
-    console.log('📥 SERVER: Received FormData for cake creation');
+    console.log('📥 Creating new cake for admin:', req.user.id);
     console.log('Body:', req.body);
     console.log('Files count:', req.files ? req.files.length : 0);
 
@@ -504,7 +419,7 @@ router.post('/cakes', upload.array('images', 5), async (req, res) => {
       flavor: flavor,
       size: req.body.size || 'medium',
       featured: req.body.featured === 'true',
-      available: req.body.available !== 'false', // Default to true
+      available: req.body.available !== 'false',
       stockQuantity: parseInt(req.body.stockQuantity) || 0,
       lowStockThreshold: parseInt(req.body.lowStockThreshold) || 5,
       preparationTime: parseInt(req.body.preparationTime) || 24
@@ -525,13 +440,12 @@ router.post('/cakes', upload.array('images', 5), async (req, res) => {
           // Use placeholder if Cloudinary fails
           const placeholderUrl = `https://via.placeholder.com/500x500/8B5CF6/FFFFFF?text=${encodeURIComponent(name)}`;
           imageUrls.push(placeholderUrl);
-          console.log('🔄 Using placeholder image instead');
         }
       }
       
       cakeData.images = imageUrls;
     } else {
-      cakeData.images = []; // Set empty array if no images
+      cakeData.images = [];
     }
 
     console.log('🎂 Creating cake with data:', cakeData);
@@ -546,7 +460,7 @@ router.post('/cakes', upload.array('images', 5), async (req, res) => {
       cake: savedCake
     });
   } catch (error) {
-    console.error('❌ SERVER: Error creating cake:', error);
+    console.error('❌ Error creating cake:', error);
     res.status(400).json({
       success: false,
       message: error.message
@@ -575,6 +489,7 @@ router.put('/cakes/:id', async (req, res) => {
       cake
     });
   } catch (error) {
+    console.error('❌ Error updating cake:', error);
     res.status(400).json({
       success: false,
       message: error.message
@@ -599,200 +514,7 @@ router.delete('/cakes/:id', async (req, res) => {
       message: 'Cake deleted successfully'
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// Toggle cake featured status
-router.patch('/cakes/:id/feature', async (req, res) => {
-  try {
-    const cake = await Cake.findById(req.params.id);
-
-    if (!cake) {
-      return res.status(404).json({
-        success: false,
-        message: 'Cake not found'
-      });
-    }
-
-    cake.featured = !cake.featured;
-    await cake.save();
-
-    res.json({
-      success: true,
-      cake
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// Toggle cake availability
-router.patch('/cakes/:id/availability', async (req, res) => {
-  try {
-    const cake = await Cake.findById(req.params.id);
-
-    if (!cake) {
-      return res.status(404).json({
-        success: false,
-        message: 'Cake not found'
-      });
-    }
-
-    cake.available = !cake.available;
-    await cake.save();
-
-    res.json({
-      success: true,
-      cake
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// User management routes (admin only)
-router.get('/users', authorize('admin'), async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    const users = await User.find()
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await User.countDocuments();
-
-    res.json({
-      success: true,
-      users,
-      currentPage: page,
-      totalPages: Math.ceil(total / limit),
-      totalUsers: total
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// Create new user (admin only)
-router.post('/users', authorize('admin'), async (req, res) => {
-  try {
-    const user = await User.create(req.body);
-
-    res.status(201).json({
-      success: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        isActive: user.isActive
-      }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// Update user (admin only)
-router.patch('/users/:id', authorize('admin'), async (req, res) => {
-  try {
-    const { password, ...updateData } = req.body;
-
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    ).select('-password');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      user
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// Delete user (admin only)
-router.delete('/users/:id', authorize('admin'), async (req, res) => {
-  try {
-    const user = await User.findByIdAndDelete(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'User deleted successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// Toggle user active status (admin only)
-router.patch('/users/:id/status', authorize('admin'), async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    user.isActive = !user.isActive;
-    await user.save();
-
-    res.json({
-      success: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        isActive: user.isActive
-      }
-    });
-  } catch (error) {
+    console.error('❌ Error deleting cake:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -808,30 +530,8 @@ router.get('/profile', async (req, res) => {
       user: req.user
     });
   } catch (error) {
+    console.error('❌ Error fetching profile:', error);
     res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// Update admin profile
-router.patch('/profile', async (req, res) => {
-  try {
-    const { username, email } = req.body;
-    
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { username, email },
-      { new: true }
-    ).select('-password');
-
-    res.json({
-      success: true,
-      user
-    });
-  } catch (error) {
-    res.status(400).json({
       success: false,
       message: error.message
     });
